@@ -17,7 +17,10 @@ class Model(nn.Module):
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
         self.output_attention = configs.output_attention
+<<<<<<< HEAD
         self.use_norm = configs.use_norm
+=======
+>>>>>>> 6180a92 (init)
         # Embedding
         self.enc_embedding = DataEmbedding_inverted(configs.seq_len, configs.d_model, configs.embed, configs.freq,
                                                     configs.dropout)
@@ -40,12 +43,20 @@ class Model(nn.Module):
         self.projector = nn.Linear(configs.d_model, configs.pred_len, bias=True)
 
     def forecast(self, x_enc, x_mark_enc, x_dec, x_mark_dec):
+<<<<<<< HEAD
         if self.use_norm:
             # Normalization from Non-stationary Transformer
             means = x_enc.mean(1, keepdim=True).detach()
             x_enc = x_enc - means
             stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
             x_enc /= stdev
+=======
+        # Normalization from Non-stationary Transformer
+        means = x_enc.mean(1, keepdim=True).detach()
+        x_enc = x_enc - means
+        stdev = torch.sqrt(torch.var(x_enc, dim=1, keepdim=True, unbiased=False) + 1e-5)
+        x_enc /= stdev
+>>>>>>> 6180a92 (init)
 
         _, _, N = x_enc.shape # B L N
         # B: batch_size;    E: d_model; 
@@ -61,6 +72,7 @@ class Model(nn.Module):
         enc_out, attns = self.encoder(enc_out, attn_mask=None)
 
         # B N E -> B N S -> B S N 
+<<<<<<< HEAD
         dec_out = self.projector(enc_out).permute(0, 2, 1)[:, :, :N] # filter the covariates
 
         if self.use_norm:
@@ -68,6 +80,12 @@ class Model(nn.Module):
             dec_out = dec_out * (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
             dec_out = dec_out + (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
 
+=======
+        dec_out = self.projector(enc_out).permute(0, 2, 1)[:, :, :N] # filter the covariates 
+        # De-Normalization from Non-stationary Transformer
+        dec_out = dec_out * (stdev[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
+        dec_out = dec_out + (means[:, 0, :].unsqueeze(1).repeat(1, self.pred_len, 1))
+>>>>>>> 6180a92 (init)
         return dec_out
 
 

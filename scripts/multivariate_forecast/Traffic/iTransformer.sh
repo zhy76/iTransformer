@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 export CUDA_VISIBLE_DEVICES=2
+=======
+# export CUDA_VISIBLE_DEVICES=2
+>>>>>>> 6180a92 (init)
 
 model_name=iTransformer
 

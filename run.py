@@ -54,12 +54,22 @@ if __name__ == '__main__':
                         help='time features encoding, options:[timeF, fixed, learned]')
     parser.add_argument('--activation', type=str, default='gelu', help='activation')
     parser.add_argument('--output_attention', action='store_true', help='whether to output attention in ecoder')
+<<<<<<< HEAD
     parser.add_argument('--do_predict', action='store_true', help='whether to predict unseen future data')
+=======
+    parser.add_argument('--do_predict', action='store_true', 
+                        help='whether to predict unseen future data',
+                        default=True)
+>>>>>>> 6180a92 (init)
 
     # optimization
     parser.add_argument('--num_workers', type=int, default=10, help='data loader num workers')
     parser.add_argument('--itr', type=int, default=1, help='experiments times')
+<<<<<<< HEAD
     parser.add_argument('--train_epochs', type=int, default=10, help='train epochs')
+=======
+    parser.add_argument('--train_epochs', type=int, default=100, help='train epochs')
+>>>>>>> 6180a92 (init)
     parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
     parser.add_argument('--patience', type=int, default=3, help='early stopping patience')
     parser.add_argument('--learning_rate', type=float, default=0.0001, help='optimizer learning rate')
@@ -83,11 +93,17 @@ if __name__ == '__main__':
     parser.add_argument('--target_root_path', type=str, default='./data/electricity/', help='root path of the data file')
     parser.add_argument('--target_data_path', type=str, default='electricity.csv', help='data file')
     parser.add_argument('--efficient_training', type=bool, default=False, help='whether to use efficient_training (exp_name should be partial train)') # See Figure 8 of our paper for the detail
+<<<<<<< HEAD
     parser.add_argument('--use_norm', type=int, default=True, help='use norm and denorm')
     parser.add_argument('--partial_start_index', type=int, default=0, help='the start index of variates for partial training, '
                                                                            'you can select [partial_start_index, min(enc_in + partial_start_index, N)]')
 
     args = parser.parse_args()
+=======
+
+    args = parser.parse_args()
+
+>>>>>>> 6180a92 (init)
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
 
     if args.use_gpu and args.use_multi_gpu:
@@ -95,6 +111,13 @@ if __name__ == '__main__':
         device_ids = args.devices.split(',')
         args.device_ids = [int(id_) for id_ in device_ids]
         args.gpu = args.device_ids[0]
+<<<<<<< HEAD
+=======
+    
+    print("torch.cuda.is_available()", torch.cuda.is_available())
+    print("args.gpu:", args.use_gpu)
+    print("torch version:",torch.__version__)
+>>>>>>> 6180a92 (init)
 
     print('Args in experiment:')
     print(args)

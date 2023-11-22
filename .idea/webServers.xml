@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="5d4ea324-06cf-4e45-a7c6-df7968d0c60d" name="softmax" url="http://10.82.8.200">
+        <fileTransfer rootFolder="/share/home/22251218" accessType="SFTP" host="10.82.8.200" port="2022" sshConfigId="d7ce30ed-8541-41ab-bf35-7ea692f6d0c2" sshConfig="22251218@10.82.8.200:2022 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
