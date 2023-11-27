@@ -75,7 +75,7 @@ class StandardScaler():
         return (data * self.std) + self.mean
 
 
-def visual(true, preds=None, name='./pic/test.pdf'):
+def visual(true, preds=None, preds_lower=None, preds_upper=None, name='./pic/test.pdf'):
     """
     Results visualization
     """
@@ -83,6 +83,9 @@ def visual(true, preds=None, name='./pic/test.pdf'):
     plt.plot(true, label='GroundTruth', linewidth=2)
     if preds is not None:
         plt.plot(preds, label='Prediction', linewidth=2)
+        # 使用填充区域表示预测值的置信区间
+        if preds_lower is not None and preds_upper is not None:
+            plt.fill_between(range(len(preds)), preds_lower, preds_upper, alpha=0.3, interpolate=True)
     plt.legend()
     plt.savefig(name, bbox_inches='tight')
 

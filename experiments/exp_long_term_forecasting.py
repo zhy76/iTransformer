@@ -33,7 +33,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        criterion = nn.MSELoss()
+        global criterion
+        if self.args.loss == 'MSE':
+            criterion = nn.MSELoss()
+        elif self.args.loss == 'UNCERTAINTY':  # only for uncertainty Transformer
+            criterion = nn.GaussianNLLLoss()
         return criterion
 
     def vali(self, vali_data, vali_loader, criterion):
@@ -58,23 +62,43 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.output_attention:
-                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                            if self.args.loss == 'UNCERTAINTY':
+                                mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                            else:
+                                outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
                         else:
-                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                            if self.args.loss == 'UNCERTAINTY':
+                                mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                            else:
+                                outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 else:
                     if self.args.output_attention:
-                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                        if self.args.loss == 'UNCERTAINTY':
+                            mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                        else:
+                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
                     else:
-                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                        if self.args.loss == 'UNCERTAINTY':
+                            mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                        else:
+                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 f_dim = -1 if self.args.features == 'MS' else 0
-                outputs = outputs[:, -self.args.pred_len:, f_dim:]
-                batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
+                if self.args.loss == 'UNCERTAINTY':
+                    mu = mu[:, -self.args.pred_len:, f_dim:]
+                    batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
 
-                pred = outputs.detach().cpu()
-                true = batch_y.detach().cpu()
+                    pred = mu.detach().cpu()
+                    true = batch_y.detach().cpu()
 
-                loss = criterion(pred, true)
+                    loss = criterion(mu, batch_y, sigma[:, -self.args.pred_len:, f_dim:] ** 2)
+                else:
+                    outputs = outputs[:, -self.args.pred_len:, f_dim:]
+                    batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
 
+                    pred = outputs.detach().cpu()
+                    true = batch_y.detach().cpu()
+
+                    loss = criterion(pred, true)
                 total_loss.append(loss)
         total_loss = np.average(total_loss)
         self.model.train()
@@ -127,26 +151,49 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.output_attention:
+                            if self.args.loss == 'UNCERTAINTY':
+                                mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                            else:
+                                outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                        else:
+                            if self.args.loss == 'UNCERTAINTY':
+                                mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                            else:
+                                outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                        f_dim = -1 if self.args.features == 'MS' else 0
+                        if self.args.loss == 'UNCERTAINTY':
+                            mu = mu[:, -self.args.pred_len:, f_dim:]
+                            batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
+                            loss = criterion(mu, batch_y, sigma[:, -self.args.pred_len:, f_dim:] ** 2)
+                            train_loss.append(loss.item())
+                        else:
+                            outputs = outputs[:, -self.args.pred_len:, f_dim:]
+                            batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
+                            loss = criterion(outputs, batch_y)
+                            train_loss.append(loss.item())
+                else:
+                    if self.args.output_attention:
+                        if self.args.loss == 'UNCERTAINTY':
+                            mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                        else:
                             outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                    else:
+                        if self.args.loss == 'UNCERTAINTY':
+                            mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                         else:
                             outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
 
-                        f_dim = -1 if self.args.features == 'MS' else 0
+                    f_dim = -1 if self.args.features == 'MS' else 0
+                    if self.args.loss == 'UNCERTAINTY':
+                        mu = mu[:, -self.args.pred_len:, f_dim:]
+                        batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
+                        loss = criterion(mu, batch_y, sigma[:, -self.args.pred_len:, f_dim:] ** 2)
+                        train_loss.append(loss.item())
+                    else:
                         outputs = outputs[:, -self.args.pred_len:, f_dim:]
                         batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
                         loss = criterion(outputs, batch_y)
                         train_loss.append(loss.item())
-                else:
-                    if self.args.output_attention:
-                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
-                    else:
-                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-
-                    f_dim = -1 if self.args.features == 'MS' else 0
-                    outputs = outputs[:, -self.args.pred_len:, f_dim:]
-                    batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
-                    loss = criterion(outputs, batch_y)
-                    train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
                     print("\titers: {0}, epoch: {1} | loss: {2:.7f}".format(i + 1, epoch + 1, loss.item()))
@@ -217,27 +264,92 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():
                         if self.args.output_attention:
-                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                            if self.args.loss == 'UNCERTAINTY':
+                                # 进行多次采样
+                                samples = []
+                                for _ in range(50):  # 50次采样
+                                    mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                                    mu = mu[:, -self.args.pred_len:, f_dim:]
+                                    sigma = sigma[:, -self.args.pred_len:, f_dim:]
+                                    sample = torch.normal(mu, sigma)
+                                    samples.append(sample)
+                                samples = torch.stack(samples, dim=0)
+                            else:
+                                outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
                         else:
-                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                            if self.args.loss == 'UNCERTAINTY':
+                                # 进行多次采样
+                                samples = []
+                                for _ in range(50):  # 50次采样
+                                    mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                                    mu = mu[:, -self.args.pred_len:, f_dim:]
+                                    sigma = sigma[:, -self.args.pred_len:, f_dim:]
+                                    sample = torch.normal(mu, sigma)
+                                    samples.append(sample)
+                                samples = torch.stack(samples, dim=0)
+                            else:
+                                outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 else:
                     if self.args.output_attention:
-                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                        if self.args.loss == 'UNCERTAINTY':
+                            # 进行多次采样
+                            samples = []
+                            for _ in range(50):  # 50次采样
+                                mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
+                                mu = mu[:, -self.args.pred_len:, f_dim:]
+                                sigma = sigma[:, -self.args.pred_len:, f_dim:]
+                                sample = torch.normal(mu, sigma)
+                                samples.append(sample)
+                            samples = torch.stack(samples, dim=0)
+                        else:
+                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)[0]
 
                     else:
-                        outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                        if self.args.loss == 'UNCERTAINTY':
+                            # 进行多次采样
+                            samples = []
+                            for _ in range(50):  # 50次采样
+                                mu, sigma = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+                                mu = mu[:, -self.args.pred_len:, f_dim:]
+                                sigma = sigma[:, -self.args.pred_len:, f_dim:]
+                                sample = torch.normal(mu, sigma)
+                                samples.append(sample)
+                            samples = torch.stack(samples, dim=0)
+                        else:
+                            outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
 
                 f_dim = -1 if self.args.features == 'MS' else 0
-                outputs = outputs[:, -self.args.pred_len:, f_dim:]
-                batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
-                outputs = outputs.detach().cpu().numpy()
-                batch_y = batch_y.detach().cpu().numpy()
-                if test_data.scale and self.args.inverse:
-                    outputs = test_data.inverse_transform(outputs)
-                    batch_y = test_data.inverse_transform(batch_y)
+                pred_lower = None
+                pred_upper = None
+                if self.args.loss == 'UNCERTAINTY':
+                    # 计算采样均值和置信区间
+                    pred_mean = torch.mean(samples, dim=0)
 
-                pred = outputs
-                true = batch_y
+                    batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
+                    pred_mean = pred_mean.detach().cpu().numpy()
+                    batch_y = batch_y.detach().cpu().numpy()
+                    # 计算置信区间
+                    samples_numpy = samples.detach().cpu().numpy()
+                    pred_lower = np.quantile(samples_numpy, 0.05, axis=0)
+                    pred_upper = np.quantile(samples_numpy, 0.95, axis=0)
+                    if test_data.scale and self.args.inverse:
+                        pred_mean = test_data.inverse_transform(pred_mean)
+                        batch_y = test_data.inverse_transform(batch_y)
+                        pred_lower = test_data.inverse_transform(pred_lower)
+                        pred_upper = test_data.inverse_transform(pred_upper)
+                    pred = pred_mean
+                    true = batch_y
+                else:
+                    outputs = outputs[:, -self.args.pred_len:, f_dim:]
+                    batch_y = batch_y[:, -self.args.pred_len:, f_dim:].to(self.device)
+                    outputs = outputs.detach().cpu().numpy()
+                    batch_y = batch_y.detach().cpu().numpy()
+                    if test_data.scale and self.args.inverse:
+                        outputs = test_data.inverse_transform(outputs)
+                        batch_y = test_data.inverse_transform(batch_y)
+
+                    pred = outputs
+                    true = batch_y
 
                 preds.append(pred)
                 trues.append(true)
@@ -245,7 +357,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
                     input = batch_x.detach().cpu().numpy()
                     gt = np.concatenate((input[0, :, -1], true[0, :, -1]), axis=0)
                     pd = np.concatenate((input[0, :, -1], pred[0, :, -1]), axis=0)
-                    visual(gt, pd, os.path.join(folder_path, str(i) + '.png'))
+                    visual(gt, pd, pred_lower,pred_upper, os.path.join(folder_path, str(i) + '.png'))
 
         preds = np.array(preds)
         trues = np.array(trues)
